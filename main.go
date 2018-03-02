@@ -11,6 +11,7 @@ var clients_overview = make(map[*websocket.Conn]bool) // connected clients
 var clients_jailscontainers = make(map[*websocket.Conn]bool) // connected clients
 var clients_instance_jail = make(map[*websocket.Conn]bool) // connected clients
 var clients_bhyvevms = make(map[*websocket.Conn]bool) // connected clients
+var clients_vm_packages = make(map[*websocket.Conn]bool) // connected clients
 var clients_nodes = make(map[*websocket.Conn]bool) // connected clients
 var clients_vpnet = make(map[*websocket.Conn]bool) // connected clients
 var clients_authkey = make(map[*websocket.Conn]bool) // connected clients
@@ -21,12 +22,15 @@ var clients_sources = make(map[*websocket.Conn]bool) // connected clients
 var clients_jail_marketplace = make(map[*websocket.Conn]bool) // connected clients
 var clients_bhyve_marketplace = make(map[*websocket.Conn]bool) // connected clients
 var clients_tasklog = make(map[*websocket.Conn]bool) // connected clients
+var clients_users = make(map[*websocket.Conn]bool) // connected clients
+var clients_imported = make(map[*websocket.Conn]bool) // connected imported
 
 var broadcast_settings = make(chan []byte)           // broadcast channel
 var broadcast_overview = make(chan []byte)           // broadcast channel
 var broadcast_jailscontainers = make(chan []byte)           // broadcast channel
 var broadcast_instance_jail = make(chan []byte)           // broadcast channel
 var broadcast_bhyvevms = make(chan []byte)           // broadcast channel
+var broadcast_vm_packages = make(chan []byte)           // broadcast channel
 var broadcast_nodes = make(chan []byte)           // broadcast channel
 var broadcast_vpnet = make(chan []byte)           // broadcast channel
 var broadcast_authkey = make(chan []byte)           // broadcast channel
@@ -37,6 +41,8 @@ var broadcast_sources = make(chan []byte)           // broadcast channel
 var broadcast_jail_marketplace = make(chan []byte)           // broadcast channel
 var broadcast_bhyve_marketplace = make(chan []byte)           // broadcast channel
 var broadcast_tasklog = make(chan []byte)           // broadcast channel
+var broadcast_users = make(chan []byte)           // broadcast channel
+var broadcast_imported = make(chan []byte)           // broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -52,6 +58,7 @@ func main() {
 	http.HandleFunc("/clonos/jailscontainers/", handleConnections)
 	http.HandleFunc("/clonos/instance_jail/", handleConnections)
 	http.HandleFunc("/clonos/bhyvevms/", handleConnections)
+	http.HandleFunc("/clonos/vm_packages/", handleConnections)
 	http.HandleFunc("/clonos/nodes/", handleConnections)
 	http.HandleFunc("/clonos/vpnet/", handleConnections)
 	http.HandleFunc("/clonos/authkey/", handleConnections)
@@ -62,13 +69,16 @@ func main() {
 	http.HandleFunc("/clonos/jail_marketplace/", handleConnections)
 	http.HandleFunc("/clonos/bhyve_marketplace/", handleConnections)
 	http.HandleFunc("/clonos/tasklog/", handleConnections)
-	
+	http.HandleFunc("/clonos/users/", handleConnections)
+	http.HandleFunc("/clonos/imported/", handleConnections)
+
 	// Start listening for incoming chat messages
 	go handleMessages_overview()
 	go handleMessages_settings()
 	go handleMessages_jailscontainers()
 	go handleMessages_instance_jail()
 	go handleMessages_bhyvevms()
+	go handleMessages_vm_packages()
 	go handleMessages_nodes()
 	go handleMessages_vpnet()
 	go handleMessages_authkey()
@@ -79,8 +89,9 @@ func main() {
 	go handleMessages_jail_marketplace()
 	go handleMessages_bhyve_marketplace()
 	go handleMessages_tasklog()
-	
-	
+	go handleMessages_users()
+	go handleMessages_imported()
+
 	// Start the server on localhost port 8000 and log any errors
 	log.Println("http server started on :8023")
 	err := http.ListenAndServe(":8023", nil)
@@ -115,6 +126,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			clients_instance_jail[ws] = true
 		case "/clonos/bhyvevms/":
 			clients_bhyvevms[ws] = true
+		case "/clonos/vm_packages/":
+			clients_vm_packages[ws] = true
 		case "/clonos/nodes/":
 			clients_nodes[ws] = true
 		case "/clonos/vpnet/":
@@ -135,6 +148,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			clients_bhyve_marketplace[ws] = true
 		case "/clonos/tasklog/":
 			clients_tasklog[ws] = true
+		case "/clonos/users/":
+			clients_users[ws] = true
+		case "/clonos/imported/":
+			clients_imported[ws] = true
 		default:
 			log.Println("Urouted URL: ",r.URL.Path)
 			return
@@ -160,6 +177,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 					delete(clients_instance_jail, ws)
 				case "/clonos/bhyvevms/":
 					delete(clients_bhyvevms, ws)
+				case "/clonos/vm_packages/":
+					delete(clients_vm_packages, ws)
 				case "/clonos/nodes/":
 					delete(clients_nodes, ws)
 				case "/clonos/vpnet/":
@@ -180,6 +199,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 					delete(clients_bhyve_marketplace, ws)
 				case "/clonos/tasklog/":
 					delete(clients_tasklog, ws)
+				case "/clonos/users/":
+					delete(clients_users, ws)
+				case "/clonos/imported/":
+					delete(clients_imported, ws)
 				default:
 					log.Println("Urouted URL: ",r.URL.Path)
 					return
@@ -200,6 +223,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				broadcast_instance_jail <- amsg
 			case "/clonos/bhyvevms/":
 				broadcast_bhyvevms <- amsg
+			case "/clonos/vm_packages/":
+				broadcast_vm_packages <- amsg
 			case "/clonos/nodes/":
 				broadcast_nodes <- amsg
 			case "/clonos/vpnet/":
@@ -220,6 +245,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				broadcast_bhyve_marketplace <- amsg
 			case "/clonos/tasklog/":
 				broadcast_tasklog <- amsg
+			case "/clonos/users/":
+				broadcast_users <- amsg
+			case "/clonos/imported/":
+				broadcast_imported <- amsg
 			default:
 				log.Println("Urouted URL: ",r.URL.Path)
 				return
@@ -311,6 +340,25 @@ func handleMessages_bhyvevms() {
 		}
 	}
 }
+
+func handleMessages_vm_packages() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_vm_packages
+
+		// Send it out to every client that is currently connected
+		for client := range clients_vm_packages {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_vm_packages,client)
+			}
+		}
+	}
+}
+
+
 
 func handleMessages_nodes() {
 	for {
@@ -477,6 +525,40 @@ func handleMessages_tasklog() {
 				log.Printf("error: %v", err)
 				client.Close()
 				delete(clients_tasklog,client)
+			}
+		}
+	}
+}
+
+func handleMessages_users() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_users
+
+		// Send it out to every client that is currently connected
+		for client := range clients_users {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_users,client)
+			}
+		}
+	}
+}
+
+func handleMessages_imported() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_imported
+
+		// Send it out to every client that is currently connected
+		for client := range clients_imported {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_imported,client)
 			}
 		}
 	}
