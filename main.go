@@ -24,6 +24,7 @@ var clients_bhyve_marketplace = make(map[*websocket.Conn]bool) // connected clie
 var clients_tasklog = make(map[*websocket.Conn]bool) // connected clients
 var clients_users = make(map[*websocket.Conn]bool) // connected clients
 var clients_imported = make(map[*websocket.Conn]bool) // connected imported
+var clients_k8s = make(map[*websocket.Conn]bool) // connected k8s
 
 var broadcast_settings = make(chan []byte)           // broadcast channel
 var broadcast_overview = make(chan []byte)           // broadcast channel
@@ -43,6 +44,7 @@ var broadcast_bhyve_marketplace = make(chan []byte)           // broadcast chann
 var broadcast_tasklog = make(chan []byte)           // broadcast channel
 var broadcast_users = make(chan []byte)           // broadcast channel
 var broadcast_imported = make(chan []byte)           // broadcast channel
+var broadcast_k8s = make(chan []byte)           // broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -71,6 +73,7 @@ func main() {
 	http.HandleFunc("/clonos/tasklog/", handleConnections)
 	http.HandleFunc("/clonos/users/", handleConnections)
 	http.HandleFunc("/clonos/imported/", handleConnections)
+	http.HandleFunc("/clonos/k8s/", handleConnections)
 
 	// Start listening for incoming chat messages
 	go handleMessages_overview()
@@ -91,6 +94,7 @@ func main() {
 	go handleMessages_tasklog()
 	go handleMessages_users()
 	go handleMessages_imported()
+	go handleMessages_k8s()
 
 	// Start the server on localhost port 8000 and log any errors
 	log.Println("http server started on :8023")
@@ -152,6 +156,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			clients_users[ws] = true
 		case "/clonos/imported/":
 			clients_imported[ws] = true
+		case "/clonos/k8s/":
+			clients_k8s[ws] = true
 		default:
 			log.Println("Urouted URL: ",r.URL.Path)
 			return
@@ -203,6 +209,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 					delete(clients_users, ws)
 				case "/clonos/imported/":
 					delete(clients_imported, ws)
+				case "/clonos/k8s/":
+					delete(clients_k8s, ws)
 				default:
 					log.Println("Urouted URL: ",r.URL.Path)
 					return
@@ -249,6 +257,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				broadcast_users <- amsg
 			case "/clonos/imported/":
 				broadcast_imported <- amsg
+			case "/clonos/k8s/":
+				broadcast_k8s <- amsg
 			default:
 				log.Println("Urouted URL: ",r.URL.Path)
 				return
@@ -559,6 +569,23 @@ func handleMessages_imported() {
 				log.Printf("error: %v", err)
 				client.Close()
 				delete(clients_imported,client)
+			}
+		}
+	}
+}
+
+func handleMessages_k8s() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_k8s
+
+		// Send it out to every client that is currently connected
+		for client := range clients_k8s {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_k8s,client)
 			}
 		}
 	}
