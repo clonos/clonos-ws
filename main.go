@@ -55,25 +55,25 @@ var upgrader = websocket.Upgrader{
 
 func main() {
 	// Configure websocket route
-	http.HandleFunc("/clonos/settings/", handleConnections)
-	http.HandleFunc("/clonos/overview/", handleConnections)
-	http.HandleFunc("/clonos/jailscontainers/", handleConnections)
-	http.HandleFunc("/clonos/instance_jail/", handleConnections)
-	http.HandleFunc("/clonos/bhyvevms/", handleConnections)
-	http.HandleFunc("/clonos/vm_packages/", handleConnections)
-	http.HandleFunc("/clonos/nodes/", handleConnections)
-	http.HandleFunc("/clonos/vpnet/", handleConnections)
-	http.HandleFunc("/clonos/authkey/", handleConnections)
-	http.HandleFunc("/clonos/media/", handleConnections)
-	http.HandleFunc("/clonos/repo/", handleConnections)
-	http.HandleFunc("/clonos/bases/", handleConnections)
-	http.HandleFunc("/clonos/sources/", handleConnections)
-	http.HandleFunc("/clonos/jail_marketplace/", handleConnections)
-	http.HandleFunc("/clonos/bhyve_marketplace/", handleConnections)
-	http.HandleFunc("/clonos/tasklog/", handleConnections)
-	http.HandleFunc("/clonos/users/", handleConnections)
-	http.HandleFunc("/clonos/imported/", handleConnections)
-	http.HandleFunc("/clonos/k8s/", handleConnections)
+	http.HandleFunc("/clonos/clonos/settings/", handleConnections)
+	http.HandleFunc("/clonos/clonos/overview/", handleConnections)
+	http.HandleFunc("/clonos/clonos/jailscontainers/", handleConnections)
+	http.HandleFunc("/clonos/clonos/instance_jail/", handleConnections)
+	http.HandleFunc("/clonos/clonos/bhyvevms/", handleConnections)
+	http.HandleFunc("/clonos/clonos/vm_packages/", handleConnections)
+	http.HandleFunc("/clonos/clonos/nodes/", handleConnections)
+	http.HandleFunc("/clonos/clonos/vpnet/", handleConnections)
+	http.HandleFunc("/clonos/clonos/authkey/", handleConnections)
+	http.HandleFunc("/clonos/clonos/media/", handleConnections)
+	http.HandleFunc("/clonos/clonos/repo/", handleConnections)
+	http.HandleFunc("/clonos/clonos/bases/", handleConnections)
+	http.HandleFunc("/clonos/clonos/sources/", handleConnections)
+	http.HandleFunc("/clonos/clonos/jail_marketplace/", handleConnections)
+	http.HandleFunc("/clonos/clonos/bhyve_marketplace/", handleConnections)
+	http.HandleFunc("/clonos/clonos/tasklog/", handleConnections)
+	http.HandleFunc("/clonos/clonos/users/", handleConnections)
+	http.HandleFunc("/clonos/clonos/imported/", handleConnections)
+	http.HandleFunc("/clonos/clonos/k8s/", handleConnections)
 
 	// Start listening for incoming chat messages
 	go handleMessages_overview()
@@ -120,43 +120,43 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	//todo: we need arrays if clients[r.URL.Path][ws]
 	// enum for { channel1, channel2 } ?
 	switch r.URL.Path {
-		case "/clonos/settings/":
+		case "/clonos/clonos/settings/":
 			clients_settings[ws] = true
-		case "/clonos/overview/":
+		case "/clonos/clonos/overview/":
 			clients_overview[ws] = true
-		case "/clonos/jailscontainers/":
+		case "/clonos/clonos/jailscontainers/":
 			clients_jailscontainers[ws] = true
-		case "/clonos/instance_jail/":
+		case "/clonos/clonos/instance_jail/":
 			clients_instance_jail[ws] = true
-		case "/clonos/bhyvevms/":
+		case "/clonos/clonos/bhyvevms/":
 			clients_bhyvevms[ws] = true
-		case "/clonos/vm_packages/":
+		case "/clonos/clonos/vm_packages/":
 			clients_vm_packages[ws] = true
-		case "/clonos/nodes/":
+		case "/clonos/clonos/nodes/":
 			clients_nodes[ws] = true
-		case "/clonos/vpnet/":
+		case "/clonos/clonos/vpnet/":
 			clients_vpnet[ws] = true
-		case "/clonos/authkey/":
+		case "/clonos/clonos/authkey/":
 			clients_authkey[ws] = true
-		case "/clonos/media/":
+		case "/clonos/clonos/media/":
 			clients_media[ws] = true
-		case "/clonos/repo/":
+		case "/clonos/clonos/repo/":
 			clients_repo[ws] = true
-		case "/clonos/bases/":
+		case "/clonos/clonos/bases/":
 			clients_bases[ws] = true
-		case "/clonos/sources/":
+		case "/clonos/clonos/sources/":
 			clients_sources[ws] = true
-		case "/clonos/jail_marketplace/":
+		case "/clonos/clonos/jail_marketplace/":
 			clients_jail_marketplace[ws] = true
-		case "/clonos/bhyve_marketplace/":
+		case "/clonos/clonos/bhyve_marketplace/":
 			clients_bhyve_marketplace[ws] = true
-		case "/clonos/tasklog/":
+		case "/clonos/clonos/tasklog/":
 			clients_tasklog[ws] = true
-		case "/clonos/users/":
+		case "/clonos/clonos/users/":
 			clients_users[ws] = true
-		case "/clonos/imported/":
+		case "/clonos/clonos/imported/":
 			clients_imported[ws] = true
-		case "/clonos/k8s/":
+		case "/clonos/clonos/k8s/":
 			clients_k8s[ws] = true
 		default:
 			log.Println("Urouted URL: ",r.URL.Path)
@@ -173,43 +173,43 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error: %v", err)
 
 			switch r.URL.Path {
-				case "/clonos/overview/":
+				case "/clonos/clonos/overview/":
 					delete(clients_overview,ws)
-				case "/clonos/settings/":
+				case "/clonos/clonos/settings/":
 					delete(clients_settings,ws)
-				case "/clonos/jailscontainers/":
+				case "/clonos/clonos/jailscontainers/":
 					delete(clients_jailscontainers, ws)
-				case "/clonos/instance_jail/":
+				case "/clonos/clonos/instance_jail/":
 					delete(clients_instance_jail, ws)
-				case "/clonos/bhyvevms/":
+				case "/clonos/clonos/bhyvevms/":
 					delete(clients_bhyvevms, ws)
-				case "/clonos/vm_packages/":
+				case "/clonos/clonos/vm_packages/":
 					delete(clients_vm_packages, ws)
-				case "/clonos/nodes/":
+				case "/clonos/clonos/nodes/":
 					delete(clients_nodes, ws)
-				case "/clonos/vpnet/":
+				case "/clonos/clonos/vpnet/":
 					delete(clients_vpnet, ws)
-				case "/clonos/authkey/":
+				case "/clonos/clonos/authkey/":
 					delete(clients_authkey, ws)
-				case "/clonos/media/":
+				case "/clonos/clonos/media/":
 					delete(clients_media, ws)
-				case "/clonos/repo/":
+				case "/clonos/clonos/repo/":
 					delete(clients_repo, ws)
-				case "/clonos/bases/":
+				case "/clonos/clonos/bases/":
 					delete(clients_bases, ws)
-				case "/clonos/sources/":
+				case "/clonos/clonos/sources/":
 					delete(clients_sources, ws)
-				case "/clonos/jail_marketplace/":
+				case "/clonos/clonos/jail_marketplace/":
 					delete(clients_jail_marketplace, ws)
-				case "/clonos/bhyve_marketplace/":
+				case "/clonos/clonos/bhyve_marketplace/":
 					delete(clients_bhyve_marketplace, ws)
-				case "/clonos/tasklog/":
+				case "/clonos/clonos/tasklog/":
 					delete(clients_tasklog, ws)
-				case "/clonos/users/":
+				case "/clonos/clonos/users/":
 					delete(clients_users, ws)
-				case "/clonos/imported/":
+				case "/clonos/clonos/imported/":
 					delete(clients_imported, ws)
-				case "/clonos/k8s/":
+				case "/clonos/clonos/k8s/":
 					delete(clients_k8s, ws)
 				default:
 					log.Println("Urouted URL: ",r.URL.Path)
@@ -221,43 +221,43 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// Send the newly received message to the broadcast channel
 
 		switch r.URL.Path {
-			case "/clonos/settings/":
+			case "/clonos/clonos/settings/":
 				broadcast_settings <- amsg
-			case "/clonos/overview/":
+			case "/clonos/clonos/overview/":
 				broadcast_overview <- amsg
-			case "/clonos/jailscontainers/":
+			case "/clonos/clonos/jailscontainers/":
 				broadcast_jailscontainers <- amsg
-			case "/clonos/instance_jail/":
+			case "/clonos/clonos/instance_jail/":
 				broadcast_instance_jail <- amsg
-			case "/clonos/bhyvevms/":
+			case "/clonos/clonos/bhyvevms/":
 				broadcast_bhyvevms <- amsg
-			case "/clonos/vm_packages/":
+			case "/clonos/clonos/vm_packages/":
 				broadcast_vm_packages <- amsg
-			case "/clonos/nodes/":
+			case "/clonos/clonos/nodes/":
 				broadcast_nodes <- amsg
-			case "/clonos/vpnet/":
+			case "/clonos/clonos/vpnet/":
 				broadcast_vpnet <- amsg
-			case "/clonos/authkey/":
+			case "/clonos/clonos/authkey/":
 				broadcast_authkey <- amsg
-			case "/clonos/media/":
+			case "/clonos/clonos/media/":
 				broadcast_media <- amsg
-			case "/clonos/repo/":
+			case "/clonos/clonos/repo/":
 				broadcast_repo <- amsg
-			case "/clonos/bases/":
+			case "/clonos/clonos/bases/":
 				broadcast_bases <- amsg
-			case "/clonos/sources/":
+			case "/clonos/clonos/sources/":
 				broadcast_sources <- amsg
-			case "/clonos/jail_marketplace/":
+			case "/clonos/clonos/jail_marketplace/":
 				broadcast_jail_marketplace <- amsg
-			case "/clonos/bhyve_marketplace/":
+			case "/clonos/clonos/bhyve_marketplace/":
 				broadcast_bhyve_marketplace <- amsg
-			case "/clonos/tasklog/":
+			case "/clonos/clonos/tasklog/":
 				broadcast_tasklog <- amsg
-			case "/clonos/users/":
+			case "/clonos/clonos/users/":
 				broadcast_users <- amsg
-			case "/clonos/imported/":
+			case "/clonos/clonos/imported/":
 				broadcast_imported <- amsg
-			case "/clonos/k8s/":
+			case "/clonos/clonos/k8s/":
 				broadcast_k8s <- amsg
 			default:
 				log.Println("Urouted URL: ",r.URL.Path)
