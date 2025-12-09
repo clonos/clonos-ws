@@ -8,9 +8,9 @@ import (
 
 var clients_settings = make(map[*websocket.Conn]bool) // connected clients
 var clients_overview = make(map[*websocket.Conn]bool) // connected clients
-var clients_jailscontainers = make(map[*websocket.Conn]bool) // connected clients
+var clients_containers = make(map[*websocket.Conn]bool) // connected clients
 var clients_instance_jail = make(map[*websocket.Conn]bool) // connected clients
-var clients_bhyvevms = make(map[*websocket.Conn]bool) // connected clients
+var clients_vms = make(map[*websocket.Conn]bool) // connected clients
 var clients_vm_packages = make(map[*websocket.Conn]bool) // connected clients
 var clients_nodes = make(map[*websocket.Conn]bool) // connected clients
 var clients_vpnet = make(map[*websocket.Conn]bool) // connected clients
@@ -28,9 +28,9 @@ var clients_k8s = make(map[*websocket.Conn]bool) // connected k8s
 
 var broadcast_settings = make(chan []byte)           // broadcast channel
 var broadcast_overview = make(chan []byte)           // broadcast channel
-var broadcast_jailscontainers = make(chan []byte)           // broadcast channel
+var broadcast_containers = make(chan []byte)           // broadcast channel
 var broadcast_instance_jail = make(chan []byte)           // broadcast channel
-var broadcast_bhyvevms = make(chan []byte)           // broadcast channel
+var broadcast_vms = make(chan []byte)           // broadcast channel
 var broadcast_vm_packages = make(chan []byte)           // broadcast channel
 var broadcast_nodes = make(chan []byte)           // broadcast channel
 var broadcast_vpnet = make(chan []byte)           // broadcast channel
@@ -57,9 +57,9 @@ func main() {
 	// Configure websocket route
 	http.HandleFunc("/clonos/settings/", handleConnections)
 	http.HandleFunc("/clonos/overview/", handleConnections)
-	http.HandleFunc("/clonos/jailscontainers/", handleConnections)
+	http.HandleFunc("/clonos/containers/", handleConnections)
 	http.HandleFunc("/clonos/instance_jail/", handleConnections)
-	http.HandleFunc("/clonos/bhyvevms/", handleConnections)
+	http.HandleFunc("/clonos/vms/", handleConnections)
 	http.HandleFunc("/clonos/vm_packages/", handleConnections)
 	http.HandleFunc("/clonos/nodes/", handleConnections)
 	http.HandleFunc("/clonos/vpnet/", handleConnections)
@@ -78,9 +78,9 @@ func main() {
 	// Start listening for incoming chat messages
 	go handleMessages_overview()
 	go handleMessages_settings()
-	go handleMessages_jailscontainers()
+	go handleMessages_containers()
 	go handleMessages_instance_jail()
-	go handleMessages_bhyvevms()
+	go handleMessages_vms()
 	go handleMessages_vm_packages()
 	go handleMessages_nodes()
 	go handleMessages_vpnet()
@@ -124,12 +124,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			clients_settings[ws] = true
 		case "/clonos/overview/":
 			clients_overview[ws] = true
-		case "/clonos/jailscontainers/":
-			clients_jailscontainers[ws] = true
+		case "/clonos/containers/":
+			clients_containers[ws] = true
 		case "/clonos/instance_jail/":
 			clients_instance_jail[ws] = true
-		case "/clonos/bhyvevms/":
-			clients_bhyvevms[ws] = true
+		case "/clonos/vms/":
+			clients_vms[ws] = true
 		case "/clonos/vm_packages/":
 			clients_vm_packages[ws] = true
 		case "/clonos/nodes/":
@@ -177,12 +177,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 					delete(clients_overview,ws)
 				case "/clonos/settings/":
 					delete(clients_settings,ws)
-				case "/clonos/jailscontainers/":
-					delete(clients_jailscontainers, ws)
+				case "/clonos/containers/":
+					delete(clients_containers, ws)
 				case "/clonos/instance_jail/":
 					delete(clients_instance_jail, ws)
-				case "/clonos/bhyvevms/":
-					delete(clients_bhyvevms, ws)
+				case "/clonos/vms/":
+					delete(clients_vms, ws)
 				case "/clonos/vm_packages/":
 					delete(clients_vm_packages, ws)
 				case "/clonos/nodes/":
@@ -225,12 +225,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				broadcast_settings <- amsg
 			case "/clonos/overview/":
 				broadcast_overview <- amsg
-			case "/clonos/jailscontainers/":
-				broadcast_jailscontainers <- amsg
+			case "/clonos/containers/":
+				broadcast_containers <- amsg
 			case "/clonos/instance_jail/":
 				broadcast_instance_jail <- amsg
-			case "/clonos/bhyvevms/":
-				broadcast_bhyvevms <- amsg
+			case "/clonos/vms/":
+				broadcast_vms <- amsg
 			case "/clonos/vm_packages/":
 				broadcast_vm_packages <- amsg
 			case "/clonos/nodes/":
@@ -300,18 +300,18 @@ func handleMessages_overview() {
 	}
 }
 
-func handleMessages_jailscontainers() {
+func handleMessages_containers() {
 	for {
 		// Grab the next message from the broadcast channel
-		msg := <-broadcast_jailscontainers
+		msg := <-broadcast_containers
 
 		// Send it out to every client that is currently connected
-		for client := range clients_jailscontainers {
+		for client := range clients_containers {
 			err := client.WriteMessage(1, msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
-				delete(clients_jailscontainers, client)
+				delete(clients_containers, client)
 			}
 		}
 	}
@@ -334,18 +334,18 @@ func handleMessages_instance_jail() {
 	}
 }
 
-func handleMessages_bhyvevms() {
+func handleMessages_vms() {
 	for {
 		// Grab the next message from the broadcast channel
-		msg := <-broadcast_bhyvevms
+		msg := <-broadcast_vms
 
 		// Send it out to every client that is currently connected
-		for client := range clients_bhyvevms {
+		for client := range clients_vms {
 			err := client.WriteMessage(1, msg)
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
-				delete(clients_bhyvevms,client)
+				delete(clients_vms,client)
 			}
 		}
 	}
