@@ -25,6 +25,8 @@ var clients_tasklog = make(map[*websocket.Conn]bool) // connected clients
 var clients_users = make(map[*websocket.Conn]bool) // connected clients
 var clients_imported = make(map[*websocket.Conn]bool) // connected imported
 var clients_k8s = make(map[*websocket.Conn]bool) // connected k8s
+var clients_nas_disks = make(map[*websocket.Conn]bool) // connected /nas/disks
+var clients_nas_raids = make(map[*websocket.Conn]bool) // connected /nas/disks
 
 var broadcast_settings = make(chan []byte)           // broadcast channel
 var broadcast_overview = make(chan []byte)           // broadcast channel
@@ -45,6 +47,8 @@ var broadcast_tasklog = make(chan []byte)           // broadcast channel
 var broadcast_users = make(chan []byte)           // broadcast channel
 var broadcast_imported = make(chan []byte)           // broadcast channel
 var broadcast_k8s = make(chan []byte)           // broadcast channel
+var broadcast_nas_disks = make(chan []byte)           // broadcast channel
+var broadcast_nas_raids = make(chan []byte)           // broadcast channel
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -74,6 +78,8 @@ func main() {
 	http.HandleFunc("/clonos/users/", handleConnections)
 	http.HandleFunc("/clonos/imported/", handleConnections)
 	http.HandleFunc("/clonos/k8s/", handleConnections)
+	http.HandleFunc("/nas/disks/", handleConnections)
+	http.HandleFunc("/nas/raids/", handleConnections)
 
 	// Start listening for incoming chat messages
 	go handleMessages_overview()
@@ -95,6 +101,8 @@ func main() {
 	go handleMessages_users()
 	go handleMessages_imported()
 	go handleMessages_k8s()
+	go handleMessages_nas_disks()
+	go handleMessages_nas_raids()
 
 	// Start the server on localhost port 8000 and log any errors
 	log.Println("http server started on :8023")
@@ -158,6 +166,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			clients_imported[ws] = true
 		case "/clonos/k8s/":
 			clients_k8s[ws] = true
+		case "/nas/disks/":
+			clients_nas_disks[ws] = true
+		case "/nas/raids/":
+			clients_nas_raids[ws] = true
 		default:
 			log.Println("Urouted URL: ",r.URL.Path)
 			return
@@ -211,6 +223,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 					delete(clients_imported, ws)
 				case "/clonos/k8s/":
 					delete(clients_k8s, ws)
+				case "/nas/disks/":
+					delete(clients_nas_disks, ws)
+				case "/nas/raids/":
+					delete(clients_nas_raids, ws)
 				default:
 					log.Println("Urouted URL: ",r.URL.Path)
 					return
@@ -259,6 +275,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				broadcast_imported <- amsg
 			case "/clonos/k8s/":
 				broadcast_k8s <- amsg
+			case "/nas/disks/":
+				broadcast_nas_disks <- amsg
+			case "/nas/raids/":
+				broadcast_nas_raids <- amsg
 			default:
 				log.Println("Urouted URL: ",r.URL.Path)
 				return
@@ -586,6 +606,40 @@ func handleMessages_k8s() {
 				log.Printf("error: %v", err)
 				client.Close()
 				delete(clients_k8s,client)
+			}
+		}
+	}
+}
+
+func handleMessages_nas_disks() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_nas_disks
+
+		// Send it out to every client that is currently connected
+		for client := range clients_nas_disks {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_nas_disks,client)
+			}
+		}
+	}
+}
+
+func handleMessages_nas_raids() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast_nas_raids
+
+		// Send it out to every client that is currently connected
+		for client := range clients_nas_raids {
+			err := client.WriteMessage(1, msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				client.Close()
+				delete(clients_nas_raids,client)
 			}
 		}
 	}
