@@ -1,0 +1,12 @@
+[Unit]
+Description=ClonOS WebSocket Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/sbin/clonos-ws -c /etc/clonos-channel.conf
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
