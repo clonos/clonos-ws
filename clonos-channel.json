@@ -1,0 +1,43 @@
+{
+  "global_settings": {
+    "timeout": 300,
+    "keep_alive_interval": 20,
+    "max_reconnect_attempts": 5,
+    "default_log_level": "info"
+  },
+  "channels": [
+    { 
+      "path": "/clonos/settings/",
+      "timeout": 60 
+    },
+    { "path": "/clonos/overview/" },
+    { 
+      "path": "/clonos/containers/", 
+      "logfile": "/var/log/clonos/ws-containers.log" 
+    },
+    { "path": "/clonos/instance_jail/" },
+    { "path": "/clonos/vms/" },
+    { "path": "/clonos/vm_packages/" },
+    { "path": "/clonos/nodes/" },
+    { "path": "/clonos/vpnet/" },
+    { "path": "/clonos/authkey/" },
+    { "path": "/clonos/media/" },
+    { "path": "/clonos/repo/" },
+    { "path": "/clonos/bases/" },
+    { "path": "/clonos/sources/" },
+    { "path": "/clonos/jail_marketplace/" },
+    { "path": "/clonos/bhyve_marketplace/" },
+    { 
+      "path": "/clonos/tasklog/", 
+      "logfile": "/var/log/clonos/ws-tasks.log" 
+    },
+    { "path": "/clonos/users/" },
+    { "path": "/clonos/imported/" },
+    { "path": "/clonos/k8s/" },
+    { 
+      "path": "/nas/disks/", 
+      "update_interval": 5 
+    },
+    { "path": "/nas/raids/" }
+  ]
+}

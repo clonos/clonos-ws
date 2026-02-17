@@ -14,7 +14,7 @@ daemon_pidfile="/var/run/${name}-daemon.pid"
 logdir="/var/log/${name}"
 logfile="${logdir}/clonos_ws.log"
 command="/usr/local/bin/clonos-ws"
-clonos_ws_args="-c /usr/local/etc/clonos-channel.conf"
+clonos_ws_args="-c /usr/local/etc/clonos-channel.json"
 clonos_ws_user="www"
 load_rc_config ${name}
 

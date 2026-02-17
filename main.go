@@ -1,16 +1,33 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+// GlobalSettings holds arbitrary global settings from configuration
+type GlobalSettings map[string]interface{}
+
+// ChannelConfig represents configuration for a single WebSocket channel
+type ChannelConfig struct {
+	Path    string `json:"path"`
+	Logfile string `json:"logfile,omitempty"`
+	// other per-channel options may be added later
+}
+
+// AppConfig represents the full JSON configuration file
+type AppConfig struct {
+	GlobalSettings GlobalSettings  `json:"global_settings"`
+	Channels       []ChannelConfig `json:"channels"`
+}
 
 // ChannelManager manages all WebSocket channels dynamically
 type ChannelManager struct {
@@ -34,7 +51,8 @@ func (cm *ChannelManager) RegisterEndpoint(endpoint string) {
 	
 	if _, exists := cm.clients[endpoint]; !exists {
 		cm.clients[endpoint] = make(map[*websocket.Conn]bool)
-		cm.broadcast[endpoint] = make(chan []byte)
+		// Buffered to prevent a slow/broken writer path from blocking readers.
+		cm.broadcast[endpoint] = make(chan []byte, 256)
 		log.Printf("Registered endpoint: %s", endpoint)
 	}
 }
@@ -72,6 +90,46 @@ func (cm *ChannelManager) Broadcast(endpoint string, message []byte) {
 	}
 }
 
+// ResolveEndpoint maps an incoming request path to a registered endpoint.
+// It prefers exact matches, but also supports prefix matches (longest wins)
+// because net/http mux patterns ending with '/' match subpaths.
+func (cm *ChannelManager) ResolveEndpoint(requestPath string) (string, bool) {
+	cm.mutex.RLock()
+	defer cm.mutex.RUnlock()
+
+	if requestPath == "" {
+		return "", false
+	}
+
+	// Fast-path: exact match.
+	if _, ok := cm.clients[requestPath]; ok {
+		return requestPath, true
+	}
+
+	// Also try with enforced trailing slash.
+	normalized := requestPath
+	if !strings.HasSuffix(normalized, "/") {
+		normalized += "/"
+	}
+	if _, ok := cm.clients[normalized]; ok {
+		return normalized, true
+	}
+
+	// Prefix match: choose the longest registered endpoint that prefixes requestPath.
+	var best string
+	for endpoint := range cm.clients {
+		if strings.HasPrefix(requestPath, endpoint) || strings.HasPrefix(normalized, endpoint) {
+			if len(endpoint) > len(best) {
+				best = endpoint
+			}
+		}
+	}
+	if best == "" {
+		return "", false
+	}
+	return best, true
+}
+
 // GetBroadcastChannel returns the broadcast channel for an endpoint
 func (cm *ChannelManager) GetBroadcastChannel(endpoint string) chan []byte {
 	cm.mutex.RLock()
@@ -79,11 +137,22 @@ func (cm *ChannelManager) GetBroadcastChannel(endpoint string) chan []byte {
 	return cm.broadcast[endpoint]
 }
 
-// GetClients returns the clients map for an endpoint
-func (cm *ChannelManager) GetClients(endpoint string) map[*websocket.Conn]bool {
+// SnapshotClients returns a stable snapshot of currently connected clients
+// for an endpoint. This avoids data races with concurrent Add/Remove.
+func (cm *ChannelManager) SnapshotClients(endpoint string) []*websocket.Conn {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
-	return cm.clients[endpoint]
+
+	clientsMap := cm.clients[endpoint]
+	if len(clientsMap) == 0 {
+		return nil
+	}
+
+	out := make([]*websocket.Conn, 0, len(clientsMap))
+	for c := range clientsMap {
+		out = append(out, c)
+	}
+	return out
 }
 
 // GetAllEndpoints returns all registered endpoints
@@ -100,6 +169,13 @@ func (cm *ChannelManager) GetAllEndpoints() []string {
 
 var channelManager = NewChannelManager()
 
+// globalSettings stores loaded global_settings from configuration
+var globalSettings GlobalSettings
+
+// channelLoggers maps endpoint path to a dedicated logger writing to the
+// configured logfile (if any). It is populated once at startup.
+var channelLoggers = make(map[string]*log.Logger)
+
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -107,29 +183,48 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// loadChannelsFromFile loads channel endpoints from a configuration file
+// loadChannelsFromFile loads channel endpoints from a JSON configuration file.
+// The file is expected to contain global_settings and channels (see AppConfig).
 func loadChannelsFromFile(filename string) ([]string, error) {
-	file, err := os.Open(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
 
-	var endpoints []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" && !strings.HasPrefix(line, "#") {
-			// Ensure endpoint ends with /
-			if !strings.HasSuffix(line, "/") {
-				line += "/"
-			}
-			endpoints = append(endpoints, line)
-		}
+	var cfg AppConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	// Store global_settings for future use (currently not processed further)
+	globalSettings = cfg.GlobalSettings
+
+	var endpoints []string
+
+	for _, ch := range cfg.Channels {
+		path := strings.TrimSpace(ch.Path)
+		if path == "" {
+			continue
+		}
+
+		// Ensure endpoint ends with /
+		if !strings.HasSuffix(path, "/") {
+			path += "/"
+		}
+
+		endpoints = append(endpoints, path)
+
+		// If logfile is configured for this path, prepare a dedicated logger
+		if ch.Logfile != "" {
+			f, err := os.OpenFile(ch.Logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Printf("Error opening logfile %s for path %s: %v", ch.Logfile, path, err)
+				continue
+			}
+
+			channelLoggers[path] = log.New(f, "", log.LstdFlags)
+			log.Printf("Enabled logging for %s to %s", path, ch.Logfile)
+		}
 	}
 
 	return endpoints, nil
@@ -137,7 +232,7 @@ func loadChannelsFromFile(filename string) ([]string, error) {
 
 func main() {
 	// Parse command line flags
-	configFile := flag.String("c", "", "Configuration file with channel endpoints (one per line)")
+	configFile := flag.String("c", "", "Configuration file in JSON format (global_settings and channels)")
 	flag.Parse()
 
 	if *configFile == "" {
@@ -160,6 +255,12 @@ func main() {
 	for _, endpoint := range endpoints {
 		channelManager.RegisterEndpoint(endpoint)
 		http.HandleFunc(endpoint, handleConnections)
+		// Also register the non-slash variant to avoid net/http redirect,
+		// which breaks WebSocket upgrades.
+		trimmed := strings.TrimSuffix(endpoint, "/")
+		if trimmed != "" && trimmed != endpoint {
+			http.HandleFunc(trimmed, handleConnections)
+		}
 	}
 
 	// Start listening for incoming messages for each endpoint
@@ -176,6 +277,19 @@ func main() {
 }
 
 
+// logMessageForEndpoint logs an incoming message to a per-endpoint logfile
+// if one has been configured for the given endpoint.
+func logMessageForEndpoint(endpoint string, msg []byte) {
+	logger, ok := channelLoggers[endpoint]
+	if !ok || logger == nil {
+		return
+	}
+
+	// logger is configured with standard flags, so it will automatically
+	// prepend date/time to each log line.
+	logger.Printf("%s", msg)
+}
+
 // handleConnections handles WebSocket connections for any endpoint
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Upgrade initial GET request to a websocket
@@ -187,26 +301,29 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Make sure we close the connection when the function returns
 	defer ws.Close()
 
-	endpoint := r.URL.Path
-	log.Printf("Wake up on URL: %s", endpoint)
+	requestPath := r.URL.Path
+	endpoint, ok := channelManager.ResolveEndpoint(requestPath)
+	log.Printf("Wake up on URL: %s", requestPath)
 
 	// Check if endpoint is registered
-	if !channelManager.AddClient(endpoint, ws) {
-		log.Printf("Unrouted URL: %s", endpoint)
+	if !ok || !channelManager.AddClient(endpoint, ws) {
+		log.Printf("Unrouted URL: %s", requestPath)
 		return
 	}
 
 	for {
 		// Read in a new message as JSON and map it to a Message object
 		_, amsg, err := ws.ReadMessage()
-
-		log.Printf("Read from %s: [%s]", endpoint, amsg)
-
 		if err != nil {
-			log.Printf("error: %v", err)
+			log.Printf("error reading from %s: %v", endpoint, err)
 			channelManager.RemoveClient(endpoint, ws)
 			break
 		}
+
+		log.Printf("Read from %s: [%s]", endpoint, amsg)
+
+		// If a logfile is configured for this endpoint, log the message there
+		logMessageForEndpoint(endpoint, amsg)
 
 		// Send the newly received message to the broadcast channel
 		channelManager.Broadcast(endpoint, amsg)
@@ -222,8 +339,10 @@ func handleMessages(endpoint string) {
 		msg := <-broadcastChan
 
 		// Send it out to every client that is currently connected
-		clients := channelManager.GetClients(endpoint)
-		for client := range clients {
+		clients := channelManager.SnapshotClients(endpoint)
+		for _, client := range clients {
+			// Never let a single stuck client block the whole channel.
+			_ = client.SetWriteDeadline(time.Now().Add(2 * time.Second))
 			err := client.WriteMessage(websocket.TextMessage, msg)
 			if err != nil {
 				log.Printf("error writing to client on %s: %v", endpoint, err)

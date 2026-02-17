@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/sbin/clonos-ws -c /etc/clonos-channel.conf
+ExecStart=/sbin/clonos-ws -c /etc/clonos-channel.json
 Restart=always
 RestartSec=5
 
