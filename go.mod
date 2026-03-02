@@ -1,5 +1,5 @@
 module clonos-ws
 
-go 1.24.13
+go 1.25.7
 
-require github.com/gorilla/websocket v1.5.3 // indirect
+require github.com/gorilla/websocket v1.5.3
